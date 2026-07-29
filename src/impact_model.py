@@ -1,19 +1,25 @@
 import pandas as pd
+from typing import Tuple, List, Optional
+from dataclasses import dataclass
 
-def load_impact_data(file_path="../data/raw/ethiopia_fi_unified_data.csv"):
+@dataclass
+class ImpactModelConfig:
+    default_data_path: str = "../data/raw/ethiopia_fi_unified_data.csv"
+
+
+def load_impact_data(
+    file_path: str = ImpactModelConfig().default_data_path
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Loads dataset directly using pandas read_excel with openpyxl engine.
+    Loads dataset directly using pandas read_excel with openpyxl engine
+    to support binary Excel file structures without encoding errors.
     """
     try:
-        # Directly read as Excel since the file contains binary Excel data
         df = pd.read_excel(file_path, engine="openpyxl")
-        
         events = df[df['record_type'] == 'event'].copy()
         impact_links = df[df['record_type'] == 'impact_link'].copy()
         return events, impact_links
-        
-    except Exception as e:
-        # Silently fall back to standard CSV if it's a real plain-text CSV
+    except Exception:
         try:
             df = pd.read_csv(file_path)
             events = df[df['record_type'] == 'event'].copy()
@@ -23,19 +29,21 @@ def load_impact_data(file_path="../data/raw/ethiopia_fi_unified_data.csv"):
             return pd.DataFrame(), pd.DataFrame()
 
 
-def build_association_matrix(events_df, impact_links_df):
+def build_association_matrix(
+    events_df: pd.DataFrame, 
+    impact_links_df: pd.DataFrame
+) -> pd.DataFrame:
     """
     Creates an Event-Indicator Association Matrix mapping macro events 
     to specific financial inclusion indicators.
     """
     if impact_links_df.empty or events_df.empty:
-        # Structured matrix if raw dataset is empty/unlinked
         matrix_data = {
             'ACC_OWNERSHIP': [8.5, 3.0, 4.5, 2.0],
             'USG_DIGITAL_PAYMENT': [12.0, 5.0, 9.0, 15.0],
             'ACC_MM_ACCOUNT': [15.0, 4.0, 8.0, 5.0]
         }
-        events_list = [
+        events_list: List[str] = [
             'Telebirr Launch (2021)', 
             'Safaricom Entry (2022)', 
             'M-Pesa Launch (2023)', 
@@ -52,9 +60,9 @@ def build_association_matrix(events_df, impact_links_df):
             how="left"
         )
         
-        event_col = "event_name" if "event_name" in merged.columns else "name"
-        indicator_col = "related_indicator" if "related_indicator" in merged.columns else "indicator"
-        value_col = "impact_magnitude" if "impact_magnitude" in merged.columns else "value"
+        event_col: str = "event_name" if "event_name" in merged.columns else "name"
+        indicator_col: str = "related_indicator" if "related_indicator" in merged.columns else "indicator"
+        value_col: str = "impact_magnitude" if "impact_magnitude" in merged.columns else "value"
         
         matrix = merged.pivot_table(
             index=event_col, 
